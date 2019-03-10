@@ -32,6 +32,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifndef SILK_FIX_INLINES_H
 #define SILK_FIX_INLINES_H
 
+#include <armintr.h>
+
 #ifdef  __cplusplus
 extern "C"
 {

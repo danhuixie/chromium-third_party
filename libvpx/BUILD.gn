@@ -277,8 +277,13 @@ if (current_cpu == "arm" && arm_assembly_sources != []) {
       ads2gas_script =
           "//third_party/libvpx/source/libvpx/build/make/ads2gas_apple.pl"
     } else {
-      ads2gas_script =
+      if (is_clang) {
+        ads2gas_script =
+          "//third_party/libvpx/source/libvpx/build/make/ads2gas.pl"
+      } else {
+        ads2gas_script =
           "//third_party/libvpx/source/libvpx/build/make/ads2armasm_ms.pl"
+      }
     }
     args = [
       "-s",
