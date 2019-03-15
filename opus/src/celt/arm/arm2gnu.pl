@@ -24,6 +24,12 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use FindBin;
+use lib $FindBin::Bin;
+use thumb;
+use File::Copy;
+use FindBin qw( $RealBin );
+
 my $bigend;  # little/big endian
 my $nxstack;
 my $apple = 0;
@@ -57,7 +63,7 @@ $thumb = 0;     # ARM mode by default, not Thumb.
 @proc_stack = ();
 
 printf ("    .syntax unified\n");
-
+copy("$RealBin/armopts.s.msvs","$RealBin/armopts.s") or die "Copy failed: $!";
 LINE:
 while (<>) {
 
@@ -72,13 +78,13 @@ while (<>) {
     s/^(\S+)\s+RN\s+(\S+)/$1 .req r$2/                    && do { s/\$\$/\$/g; next };
     # If there's nothing on a line but a comment, don't try to apply any further
     #  substitutions (this is a cheap hack to avoid mucking up the license header)
-    s/^([ \t]*);/$1@/                                     && do { s/\$\$/\$/g; next };
+    s/^([ \t]*);/$1\/\//                                     && do { s/\$\$/\$/g; next };
     # If substituted -- leave immediately !
 
     s/@/,:/;
-    s/;/@/;
+    s/;/\/\//;
     while ( /@.*'/ ) {
-      s/(@.*)'/$1/g;
+      s/(@.*)'/$1 kurac/g;
     }
     s/\{FALSE\}/0/g;
     s/\{TRUE\}/1/g;
@@ -142,14 +148,14 @@ while (<>) {
             # won't match the original source file (we could use the .line
             # directive, which is documented to be obsolete, but then gdb will
             # show the wrong line in the translated source file).
-            s/$/;   .arch armv7-a\n   .fpu neon\n   .object_arch armv4t/ unless ($apple);
+            #s/$/;   .arch armv7-a\n   .fpu neon\n   .object_arch armv4t/ unless ($apple);
         }
     }
 
     s/\|\|\.constdata\$(\d+)\|\|/.L_CONST$1/;       # ||.constdata$3||
     s/\|\|\.bss\$(\d+)\|\|/.L_BSS$1/;               # ||.bss$2||
     s/\|\|\.data\$(\d+)\|\|/.L_DATA$1/;             # ||.data$2||
-    s/\|\|([a-zA-Z0-9_]+)\@([a-zA-Z0-9_]+)\|\|/@ $&/;
+    s/\|\|([a-zA-Z0-9_]+)\@([a-zA-Z0-9_]+)\|\|/\/\/ $&/;
     s/^(\s+)\%(\s)/    .space $1/;
 
     s/\|(.+)\.(\d+)\|/\.$1_$2/;                     # |L80.123| -> .L80_123
@@ -170,32 +176,32 @@ while (<>) {
             # the label handling below (if $prefix would be empty).
             $prefix = $prefix."; ";
             push(@proc_stack, $proc);
-            s/^[A-Za-z_\.]\w+/$symprefix$&:/;
+            s/^[A-Za-z_\.]\w+/$symprefix$&/;
         }
         $prefix = $prefix."\t.thumb_func; " if ($thumb);
-        s/\bPROC\b/@ $&/;
-        $_ = $prefix.$_;
+        s/\bPROC\b/\/\/ $&/;
+        #$_ = $prefix.$_;
     }
     s/^(\s*)(S|Q|SH|U|UQ|UH)ASX\b/$1$2ADDSUBX/;
     s/^(\s*)(S|Q|SH|U|UQ|UH)SAX\b/$1$2SUBADDX/;
     if (/\bENDP\b/)
     {
         my $proc;
-        s/\bENDP\b/@ $&/;
+        s/\bENDP\b/\/\/ $&/;
         $proc = pop(@proc_stack);
-        $_ = "\t.size $proc, .-$proc".$_ if ($proc && !$apple);
+        #$_ = "\t.size $proc, .-$proc".$_ if ($proc && !$apple);
     }
-    s/\bSUBT\b/@ $&/;
-    s/\bDATA\b/@ $&/;   # DATA directive is deprecated -- Asm guide, p.7-25
-    s/\bKEEP\b/@ $&/;
-    s/\bEXPORTAS\b/@ $&/;
-    s/\|\|(.)+\bEQU\b/@ $&/;
+    s/\bSUBT\b/\/\/ $&/;
+    s/\bDATA\b/\/\/ $&/;   # DATA directive is deprecated -- Asm guide, p.7-25
+    s/\bKEEP\b/\/\/ $&/;
+    s/\bEXPORTAS\b/\/\/ $&/;
+    s/\|\|(.)+\bEQU\b/\/\/ $&/;
     s/\|\|([\w\$]+)\|\|/$1/;
-    s/\bENTRY\b/@ $&/;
-    s/\bASSERT\b/@ $&/;
-    s/\bGBLL\b/@ $&/;
-    s/\bGBLA\b/@ $&/;
-    s/^\W+OPT\b/@ $&/;
+    s/\bENTRY\b/\/\/ $&/;
+    s/\bASSERT\b/\/\/ $&/;
+    s/\bGBLL\b/\/\/ $&/;
+    s/\bGBLA\b/\/\/ $&/;
+    s/^\W+OPT\b/\/\/ $&/;
     s/:OR:/|/g;
     s/:SHL:/<</g;
     s/:SHR:/>>/g;
@@ -337,7 +343,7 @@ while (<>) {
         s/\badrl\s+(\w+)\s*,\s*(\w+)/ldr $1,=$2/i;
         $addPadding = 1;
     }
-    s/\bEND\b/@ END/;
+    s/\bEND\b/\/\/ END/;
 } continue {
     printf ("%s", $_) if $printit;
     if ($addPadding != 0)
@@ -348,6 +354,6 @@ while (<>) {
 }
 #If we had a code section, mark that this object doesn't need an executable
 # stack.
-if ($nxstack && !$apple) {
-    printf ("    .section\t.note.GNU-stack,\"\",\%\%progbits\n");
-}
+#if ($nxstack && !$apple) {
+#    printf ("    .section\t.note.GNU-stack,\"\",\%\%progbits\n");
+#}

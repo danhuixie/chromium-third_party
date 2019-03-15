@@ -25,9 +25,9 @@ config("opus_config") {
     defines = [ "OPUS_FIXED_POINT" ]
   }
   
-  #if (current_cpu == "arm" && current_os == "winuwp" && target_os == "winuwp") {
-  #  defines += [ "USE_MSVS_ARM_INTRINCICS" ]
-  #}
+  if (current_cpu == "arm" && current_os == "winuwp" && target_os == "winuwp" && !is_clang) {
+    defines += [ "USE_MSVS_ARM_INTRINCICS" ]
+  }
 }
 
 config("opus_test_config") {
@@ -58,10 +58,10 @@ if (use_opus_rtcd) {
 
       if (is_clang) {
         ads2gas_script =
-          "//third_party/libvpx/source/libvpx/build/make/ads2gas.pl"
+          "//third_party/opus/src/celt/arm/arm2gnu.pl"
       } else {
         ads2gas_script =
-          "//third_party/libvpx/source/libvpx/build/make/ads2armasm_msvs.pl"
+          "//third_party/opus/src/celt/arm/ads2armasm_msvs.pl"
       }
       
       args = [
